@@ -3,6 +3,8 @@
 #include "byte_stream.hh"
 
 #include <string>
+#include <vector>
+#include <optional>
 
 class Reassembler
 {
@@ -31,4 +33,11 @@ public:
 
   // How many bytes are stored in the Reassembler itself?
   uint64_t bytes_pending() const;
+
+private:
+  std::string buffer_{};
+  std::vector<char> filled_{};
+
+  uint64_t first_unassembled_ = 0; // first unassembled index
+  std::optional<uint64_t> end_{};
 };
