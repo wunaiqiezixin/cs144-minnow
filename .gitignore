@@ -3,3 +3,7 @@
 /.vscode
 *.swp
 /.cache
+/blob
+/handout
+/.claude
+/CLAUDE.md
