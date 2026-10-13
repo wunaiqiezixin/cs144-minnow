@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <optional>
+#include <map>
 
 class Reassembler
 {
@@ -35,8 +36,7 @@ public:
   uint64_t bytes_pending() const;
 
 private:
-  std::string buffer_{};
-  std::vector<char> filled_{};
+  std::map<uint64_t, std::string> buffer_{};
 
   uint64_t first_unassembled_ = 0; // first unassembled index
   std::optional<uint64_t> end_{};
