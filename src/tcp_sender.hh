@@ -6,6 +6,9 @@
 #include <queue>
 #include <deque>
 
+
+class TCPSender
+{
 /* 计时器 */
 class Timer
 {
@@ -26,9 +29,6 @@ public:
   void advanced( uint64_t ms_since_last_tick ) { elapesed_ms_ += ms_since_last_tick; }
 };
 
-
-class TCPSender
-{
   Wrap32 isn_;
   uint64_t initial_RTO_ms_;
 

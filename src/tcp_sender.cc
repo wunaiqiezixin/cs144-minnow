@@ -33,7 +33,7 @@ optional<TCPSenderMessage> TCPSender::maybe_send()
 /* 从 outbound_stream 中尽可能地获取字节，并将其封装成 TCPSenderMessage */
 void TCPSender::push( Reader& outbound_stream )
 {
-  while (!fin_sent_) {
+  while (!fin_sent_) { // 如果 FIN 已发送，直接返回
     TCPSenderMessage message;
     uint64_t effective_window = max(static_cast<uint64_t>(1), window_size_); // 窗口大小为 0 时，默认为 1
 
@@ -101,17 +101,20 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
 {
   const auto& [recv_ack, window_size] = msg;
 
+  // 如果序列号不存在，更新窗口大小，直接返回
   if (!recv_ack.has_value()) {
     window_size_ = window_size;
     return;
   }
 
+  // Wrap32 --> absolute sequence
   uint64_t recv_abs_ack = (recv_ack.value()).unwrap(isn_, abs_acked_);
 
   if (recv_abs_ack > next_abs_seqno_ or recv_abs_ack < abs_acked_) {
     return;
   }
   window_size_ = window_size;
+  // 如果 outstanding_ 中没有任何需要确认的字段，更新窗口大小后直接返回
   if (recv_abs_ack == abs_acked_) {
     return;
   }
@@ -119,6 +122,7 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
   while (!outstanding_.empty()) {
     const auto& front = outstanding_.front();
     uint64_t end_seqno = front.seqno.unwrap(isn_, abs_acked_) + front.sequence_length();
+    // 如果 outstanding_ 头部的报文已经完全确认，弹出它
     if (recv_abs_ack >= end_seqno)
       outstanding_.pop();
     else
@@ -131,12 +135,13 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
   consecutive_retx_ = 0;
   timer_.reset_rto();
 
-  if (outstanding_.empty())
+  if (outstanding_.empty()) // 为空，停止计时，所有的报文都已经确认
     timer_.stop();
-  else
+  else // 不为空，重新开始计时，重置 elapesed_
     timer_.start();
 }
 
+/* 处理超时重传 */
 void TCPSender::tick( const size_t ms_since_last_tick )
 {
   if (!timer_.running())
@@ -144,24 +149,29 @@ void TCPSender::tick( const size_t ms_since_last_tick )
 
   timer_.advanced(ms_since_last_tick);
 
+  // 计时器没有过期，不理会(不用重传)
   if (!timer_.expired())
     return;
 
+  // 计时器过期，进行重传，直接将 outstanding_ 头部整段放入 ready_to_send_ 队列，即使有的部分已经确认
   ready_to_send_.push_front(outstanding_.front());
 
+  // 窗口不为 0, 连续重传次数加 1，进行 exponential backof
   if (window_size_ > 0) {
     consecutive_retx_++;
     timer_.backoff();
   }
 
+  // 以当前的 RTO 重新启动计时器，清零 elapesed_
   timer_.start();
 }
 
-Timer::Timer( uint64_t initial_RTO_ms )
+
+TCPSender::Timer::Timer( uint64_t initial_RTO_ms )
   : initial_RTO_ms_(initial_RTO_ms), current_RTO_ms_(initial_RTO_ms)
 {}
 
-void Timer::start()
+void TCPSender::Timer::start()
 {
   elapesed_ms_ = 0;
   running_ = true;
