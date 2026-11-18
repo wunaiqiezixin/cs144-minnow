@@ -41,6 +41,18 @@ private:
   // IP (known as Internet-layer or network-layer) address of the interface
   Address ip_address_;
 
+  // 待发送队列，存放将发送给下一跳的以太网帧 EthernetFrame
+  std::queue<EthernetFrame> ready_to_send_ { };
+
+  // 存放等待 ARP 响应(来获取下一跳 MAC) 的 IPv4 数据报：下一跳 IP ----> { 下一跳 MAC，挂起时间 }
+  std::unordered_map<uint32_t, std::pair< std::vector<InternetDatagram>, uint64_t >> await_for_reply_ { };
+
+  // ARP 表，存放 IP 地址到 MAC 地址的映射：IP ----> { MAC，建立映射的时刻 }
+  std::unordered_map<uint32_t, std::pair<EthernetAddress, uint64_t> > arp_table_ { };
+
+  // 已经流逝的总时间（自计时）
+  uint64_t elapsed_ms_ { 0 };
+
 public:
   // Construct a network interface with given Ethernet (network-access-layer) and IP (internet-layer)
   // addresses
