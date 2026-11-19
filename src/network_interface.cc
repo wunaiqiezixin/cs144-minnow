@@ -99,12 +99,12 @@ optional<InternetDatagram> NetworkInterface::recv_frame( const EthernetFrame& fr
     if (msg.opcode == ARPMessage::OPCODE_REPLY &&
         await_for_reply_.find(msg.sender_ip_address) != await_for_reply_.end()) {
       // 取出所有待响应的 InternetDatagram，成帧，并放入 ready_to_send_ 队列
-      auto dgram_vec = await_for_reply_[msg.sender_ip_address].first;
-      await_for_reply_.erase(msg.sender_ip_address);
+      const auto& dgram_vec = await_for_reply_[msg.sender_ip_address].first;
       for (auto& dgram : dgram_vec) {
         EthernetFrame ipv4_frame = { {msg.sender_ethernet_address, ethernet_address_, EthernetHeader::TYPE_IPv4}, serialize(dgram) };
         ready_to_send_.push(ipv4_frame);
       }
+      await_for_reply_.erase(msg.sender_ip_address);
     }
   }
   return { };
